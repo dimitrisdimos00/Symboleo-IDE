@@ -1,0 +1,27 @@
+Domain StudentContractD
+	Student isA Role with name:String;
+	UniversityDepartment isA Role with name:String;
+	Compulsory_passed isAn Event with courses_passed:Number, courses_needed:Number;
+	Thesis_completed isAn Event with thesis_status:String, thesis_status_needed:String;
+	ECTS_passed isAn Event with ects:Number, ects_needed:Number;
+	Course_flows_completed isAn Event with course_flows:Number, course_flows_needed:Number;
+	Degree isAn Asset with degree_info:String;
+	Graduation isAn Event with degree:Degree;
+endDomain
+
+Contract studentContractC(s:Student, cp:Number, thstatus:String, ectscoll:Number, cfcompleted:Number)
+Declarations
+	ud: UniversityDepartment with name:= "CSDAuth";
+	d: Degree with degree_info:= "undergraduate informatics degree";
+	comp_passed: Compulsory_passed with courses_passed:= cp, courses_needed:= 25;
+	thesis_completed: Thesis_completed with thesis_status:= thstatus, thesis_status_needed:= "complete";
+	ects_passed: ECTS_passed with ects:= ectscoll, ects_needed:= 240;
+	course_flows_completed: Course_flows_completed with course_flows:= cfcompleted, course_flows_needed:= 1;
+	graduation: Graduation with degree:= d;
+Obligations
+	o1: O(s,ud,true,Happens(comp_passed));
+	o2: O(s,ud,true,Happens(thesis_completed));
+	o3: O(s,ud,true,Happens(ects_passed));
+	o4: O(s,ud,true,Happens(course_flows_completed));
+	o5: O(ud,s,comp_passed and thesis_completed and ects_passed and course_flows_completed,Happens(graduation));
+endContract
