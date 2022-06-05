@@ -1382,6 +1382,7 @@ class SymboleoGenerator extends AbstractGenerator {
   }
 
   def void compileDomainTypes(IFileSystemAccess2 fsa, Model model) {
+    val StringBuilder concertoString = new StringBuilder();
     for (asset : assets) {
       generateAsset(fsa, model, asset)
     }
@@ -1390,11 +1391,13 @@ class SymboleoGenerator extends AbstractGenerator {
     }
     for (role : roles) {
       generateRole(fsa, model, role)
+      concertoString.append(generateRoleConcerto(model, role)) 
     }
-
     for (enumeration : enumerations) {
       generateEnumeration(fsa, model, enumeration)
     }
+    fsa.generateFile("./" + model.contractName + "/domain/" + "concerto" + ".cto", concertoString.toString())
+    
   }
 
   def void generateEnumeration(IFileSystemAccess2 fsa, Model model, Enumeration enumeration) {
@@ -1549,7 +1552,16 @@ class SymboleoGenerator extends AbstractGenerator {
       fsa.generateFile("./" + model.contractName + "/domain/roles/" + role.name + ".js", code)
     }
   }
-
+  
+  def CharSequence generateRoleConcerto(Model model, RegularType role) {
+     val code = '''  
+	 participant «role.name» identified by «role.attributes.get(0).name»{
+	 	o String «role.attributes.get(0).name»
+	 }
+	'''
+  	 return code;
+     }
+      
   override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorContext context) {
     for (e : resource.allContents.toIterable.filter(Model)) {
       assets.clear()
