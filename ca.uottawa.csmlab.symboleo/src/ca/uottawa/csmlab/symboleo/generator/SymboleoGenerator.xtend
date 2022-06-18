@@ -1380,14 +1380,17 @@ class SymboleoGenerator extends AbstractGenerator {
       case '==': return '==='
     }
   }
-
+  // changed compileDomainTypes to fit concerto generation
   def void compileDomainTypes(IFileSystemAccess2 fsa, Model model) {
     val StringBuilder concertoString = new StringBuilder();
+    concertoString.append("namespace studentContract \n\n")
     for (asset : assets) {
       generateAsset(fsa, model, asset)
+      concertoString.append(generateAssetConcerto(model, asset))
     }
     for (event : events) {
       generateEvent(fsa, model, event)
+      concertoString.append(generateConceptConcerto(model, event))
     }
     for (role : roles) {
       generateRole(fsa, model, role)
@@ -1553,15 +1556,49 @@ class SymboleoGenerator extends AbstractGenerator {
     }
   }
   
+  // CONCERTO CHAR SEQUENCE GENERATION FOR ROLE
+  def CharSequence generateAssetConcerto(Model model, RegularType asset) {
+     val code = '''
+     asset «asset.name» identified by «asset.attributes.get(0).name»{
+     	o String «asset.attributes.get(0).name»
+     }
+     
+     '''
+     return code;
+  }
+  
+  // CONCERTO CHAR SEQUENCE GENERATION FOR EVENT (GENERATES TO CONCEPT)
+  def CharSequence generateConceptConcerto(Model modewl, RegularType event) {
+  	val code = '''
+  	concept «event.name»{
+  	«FOR attribute : event.attributes»
+  	«IF attribute.getBaseType !== null »
+	«IF attribute.getBaseType.getName.equals("Number")»
+  	o Integer «attribute.name»
+	«ELSE»
+	o «attribute.getBaseType.getName» «attribute.name»
+	«ENDIF»
+	«ELSE»
+  	o «attribute.getDomainType.getName» «attribute.name»
+	«ENDIF»
+  	«ENDFOR»
+  	}
+  	
+  	'''
+  	return code
+  }
+  
+  // CONCERTO CHAR SEQUENCE GENERATION FOR ROLE
   def CharSequence generateRoleConcerto(Model model, RegularType role) {
      val code = '''  
 	 participant «role.name» identified by «role.attributes.get(0).name»{
 	 	o String «role.attributes.get(0).name»
 	 }
-	'''
+	 
+	 '''
   	 return code;
-     }
-      
+  }
+  
   override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorContext context) {
     for (e : resource.allContents.toIterable.filter(Model)) {
       assets.clear()
