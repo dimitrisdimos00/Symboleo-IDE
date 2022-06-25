@@ -1,0 +1,49 @@
+grammar org.xtext.example.mydsl.MyDsl with org.eclipse.xtext.common.Terminals
+
+generate myDsl "http://www.xtext.org/example/mydsl/MyDsl"
+
+Model:
+	domainName=ID (entities+=BaseEntity ';')+
+;
+
+BaseEntity:
+	EnumEntity | Entity
+;
+	
+Entity:
+	type=EntityType name=ID ('extends' parent=[BaseEntity])? ('identified' 'by' idVariable=[Variable])?
+	'{' (variables+=Variable ';')+ '}'
+;
+
+EnumEntity:
+	'enum' name=ID ('extends' parent=[BaseEntity])?
+	'{' (variables+=EnumMember ';')+ '}'
+;
+
+EnumMember:
+	'o' name=ID
+;
+
+EntityType:
+	name=("transaction" | "asset" | "concept")
+;
+
+Variable:
+	PrimitiveVariable | AdvancedVariable
+;
+
+PrimitiveVariable:
+	'o' type=Primitive name=ID
+;
+
+AdvancedVariable:
+	'o' type=[VariableType] name=ID
+;
+
+VariableType:
+	Primitive | BaseEntity
+;
+
+Primitive:
+	name=("String" | "Int" | "Boolean" | "DateTime")
+;

@@ -1,0 +1,11 @@
+outputFileName
+enum myEnum {
+	o firstVariable;
+	o secondVariable;
+};
+
+asset myAsset {
+	o Int myInt;
+	o Boolean myBoolean;
+	o myEnum myVar;
+};
