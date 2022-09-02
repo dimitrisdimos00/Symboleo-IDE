@@ -1,3 +1,6 @@
+# Πτυχιακή εργασία Σπουδαστή Δημητρίου Δήμου, ΑΕΜ: 3377
+Μετατροπή συμβολαίων από γλώσσα Symboleo σε template του Accord Project.
+
 # Symboleo Text Editor
 [![DOI](https://zenodo.org/badge/263478039.svg)](https://zenodo.org/badge/latestdoi/263478039)
 
