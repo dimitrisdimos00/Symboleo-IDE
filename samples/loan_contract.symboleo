@@ -1,0 +1,19 @@
+Domain loanContractD
+	Borrower isA Role with name: String;
+	Creditor isA Role with name: String;
+	Currency isAn Enumeration(USD,EUR);
+	CashOut isAn Event with amount: Number, currency: Currency, from: Creditor, to: Borrower;
+	MonthlyPayment isAn Event with amount: Number, currency: Currency, from: Borrower, to:Creditor;
+endDomain
+
+Contract loanContractC(b:Borrower, c: Creditor, amt: Number,
+	curr: Currency, rate: Number, dur:Number)
+Declarations
+	mp: MonthlyPayment with amount:= (amt * rate / (dur * 12)), currency:= curr, from:= b, to:= c;
+	co: CashOut with amount:= amt, currency:= curr, from:= c, to:= b;
+Obligations
+	cashOut: true -> O(c, b,true, Happens(co));
+	payment: true -> O(b, c, co, Happens(mp));
+Constraints
+	not(IsEqual(c,b));
+endContract

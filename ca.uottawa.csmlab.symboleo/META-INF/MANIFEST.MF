@@ -15,15 +15,15 @@ Require-Bundle: org.eclipse.xtext,
  org.eclipse.emf.common,
  org.antlr.runtime;bundle-version="[3.2.0,3.2.1)"
 Bundle-RequiredExecutionEnvironment: JavaSE-11
-Export-Package: ca.uottawa.csmlab.symboleo.symboleo.impl,
- ca.uottawa.csmlab.symboleo.parser.antlr.internal,
- ca.uottawa.csmlab.symboleo.services,
- ca.uottawa.csmlab.symboleo.scoping,
- ca.uottawa.csmlab.symboleo.symboleo,
- ca.uottawa.csmlab.symboleo.symboleo.util,
+Export-Package: ca.uottawa.csmlab.symboleo,
+ ca.uottawa.csmlab.symboleo.generator,
  ca.uottawa.csmlab.symboleo.parser.antlr,
- ca.uottawa.csmlab.symboleo.serializer,
- ca.uottawa.csmlab.symboleo,
+ ca.uottawa.csmlab.symboleo.parser.antlr.internal,
+ ca.uottawa.csmlab.symboleo.scoping,
+ ca.uottawa.csmlab.symboleo.services,
+ ca.uottawa.csmlab.symboleo.symboleo,
+ ca.uottawa.csmlab.symboleo.symboleo.impl,
+ ca.uottawa.csmlab.symboleo.symboleo.util,
  ca.uottawa.csmlab.symboleo.validation,
- ca.uottawa.csmlab.symboleo.generator
+ ca.uottawa.csmlab.symboleo.serializer
 Import-Package: org.apache.log4j

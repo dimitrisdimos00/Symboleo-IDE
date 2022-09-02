@@ -29,7 +29,6 @@ Enumeration:
 EnumItem:
 	name=ID;
 
-// TODO not extend itself, prevent cycles
 RegularType:
 	name=ID ('isA' | 'isAn') ontologyType=OntologyType ('with' (attributes+=Attribute ',')* (attributes+=Attribute))? |
 	name=ID ('isA' | 'isAn') regularType=[RegularType] ('with' (attributes+=Attribute ',')* (attributes+=Attribute))?;
@@ -56,10 +55,6 @@ ParameterType:
 
 Variable:
 	name=ID ':' type=[RegularType] ('with' attributes+=Assignment (',' attributes+=Assignment)*)?;
-
-//Assignment:
-//	{AssignVariable} name=ID ':=' value=VariableDotExpression |
-//	AssignmentB;
 
 VariableDotExpression returns Ref:
 	VariableRef ({VariableDotExpression.ref=current} "." tail=[Attribute])*;
@@ -138,15 +133,12 @@ Obligation:
 Power:
 	name=ID ':' (trigger=Proposition '->')? ('P' | 'Power') '(' creditor=VariableDotExpression ',' debtor=VariableDotExpression ',' antecedent=Proposition ',' consequent=PowerFunction ')';
 	
-PowerFunction returns PowerFunction:
+PowerFunction returns PowerFunction:	
 	{PFObligationSuspended} action = 'Suspended' '(' 'obligations.' norm = [Obligation] ')' | 
 	{PFObligationResumed} action = 'Resumed' '(' 'obligations.' norm = [Obligation] ')' | 
 	{PFObligationDischarged} action = 'Discharged' '(' 'obligations.' norm = [Obligation] ')' |
 	{PFObligationTerminated} action = 'Terminated' '(' 'obligations.' norm = [Obligation] ')' |
 	{PFObligationTriggered} action = 'Triggered' '(' 'obligations.' norm = [Obligation] ')' |
-	//{PFPowerSuspended} action = 'Suspended_' '(' norm = [Power] ')' | 
-	//{PFPowerResumed} action = 'Resumed_' '(' norm = [Power] ')' | 
-	//{PFPowerTerminated} action = 'Terminated_' '(' norm = [Power] ')' |
 	{PFContractSuspended} action = 'Suspended' '(' norm = 'self' ')' | 
 	{PFContractResumed} action = 'Resumed' '(' norm = 'self' ')' |
 	{PFContractTerminated} action = 'Terminated' '(' norm = 'self' ')';
@@ -255,7 +247,7 @@ Timevalue:
 TimeUnit:
 	'seconds' | 'minutes' | 'hours' | 'days' | 'weeks' | 'months' | 'years';
 
-Interval:
+Interval: 
 	intervalExpression=IntervalExpression;
 
 IntervalExpression:

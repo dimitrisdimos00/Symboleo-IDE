@@ -8,12 +8,10 @@ import org.eclipse.xtext.generator.AbstractGenerator
 import org.eclipse.xtext.generator.IFileSystemAccess2
 import org.eclipse.xtext.generator.IGeneratorContext
 import ca.uottawa.csmlab.symboleo.symboleo.RegularType
-import java.util.List
 import ca.uottawa.csmlab.symboleo.symboleo.Model
 import java.util.ArrayList
 import ca.uottawa.csmlab.symboleo.symboleo.Enumeration
 import ca.uottawa.csmlab.symboleo.symboleo.Parameter
-//import ca.uottawa.csmlab.symboleo.symboleo.AssignVariable
 import ca.uottawa.csmlab.symboleo.symboleo.VariableRef
 import ca.uottawa.csmlab.symboleo.symboleo.Ref
 import ca.uottawa.csmlab.symboleo.symboleo.VariableDotExpression
@@ -58,7 +56,6 @@ import ca.uottawa.csmlab.symboleo.symboleo.PAtomPredicateTrueLiteral
 import ca.uottawa.csmlab.symboleo.symboleo.PAtomPredicateFalseLiteral
 import ca.uottawa.csmlab.symboleo.symboleo.PAtomIntLiteral
 import ca.uottawa.csmlab.symboleo.symboleo.PAtomStringLiteral
-import java.util.HashMap
 import ca.uottawa.csmlab.symboleo.symboleo.PAtomDoubleLiteral
 import ca.uottawa.csmlab.symboleo.symboleo.PredicateFunction
 import ca.uottawa.csmlab.symboleo.symboleo.PredicateFunctionHappens
@@ -93,6 +90,24 @@ import ca.uottawa.csmlab.symboleo.symboleo.PAtomDateLiteral
 import ca.uottawa.csmlab.symboleo.symboleo.PredicateFunctionHappensAfter
 import ca.uottawa.csmlab.symboleo.symboleo.ParameterType
 import ca.uottawa.csmlab.symboleo.symboleo.PowerFunction
+import ca.uottawa.csmlab.symboleo.symboleo.PredicateFunctionWHappensBeforeEvent
+import ca.uottawa.csmlab.symboleo.symboleo.PredicateFunctionSHappensBeforeEvent
+import ca.uottawa.csmlab.symboleo.symboleo.PredicateFunctionOccurs
+import ca.uottawa.csmlab.symboleo.symboleo.Situation
+import ca.uottawa.csmlab.symboleo.symboleo.PredicateFunctionIsEqual
+import ca.uottawa.csmlab.symboleo.symboleo.PredicateFunctionIsOwner
+import ca.uottawa.csmlab.symboleo.symboleo.PredicateFunctionCannotBeAssigned
+import ca.uottawa.csmlab.symboleo.symboleo.OtherFunction
+import ca.uottawa.csmlab.symboleo.symboleo.PAtomFunction
+import ca.uottawa.csmlab.symboleo.symboleo.Attribute
+import ca.uottawa.csmlab.symboleo.symboleo.PFObligationSuspended
+import ca.uottawa.csmlab.symboleo.symboleo.PFObligationResumed
+import ca.uottawa.csmlab.symboleo.symboleo.PFObligationDischarged
+import ca.uottawa.csmlab.symboleo.symboleo.PFObligationTerminated
+import ca.uottawa.csmlab.symboleo.symboleo.PFObligationTriggered
+import ca.uottawa.csmlab.symboleo.symboleo.PFContractSuspended
+import ca.uottawa.csmlab.symboleo.symboleo.PFContractResumed
+import ca.uottawa.csmlab.symboleo.symboleo.PFContractTerminated
 
 //
 /**
@@ -109,38 +124,11 @@ class SymboleoGenerator extends AbstractGenerator {
   val parameters = new ArrayList<Parameter>
   val variables = new ArrayList<Variable>
   
-  val conditionalObligations = new ArrayList<Obligation>
-  val conditionalSurvivingObligations = new ArrayList<Obligation>
-  val conditionalPowers = new ArrayList<Power>
-  
-  val unconditionalObligations = new ArrayList<Obligation>
-  val unconditionalSurvivingObligations = new ArrayList<Obligation>
-  val unconditionalPowers = new ArrayList<Power>
-  
-  val untriggeredObligations = new ArrayList<Obligation>
-  val untriggeredSurvivingObligations = new ArrayList<Obligation>
-  val untriggeredPowers = new ArrayList<Power>
-  
-  val triggeredObligations = new ArrayList<Obligation>
-  val triggeredSurvivingObligations = new ArrayList<Obligation>
-  val triggeredPowers = new ArrayList<Power>
-  
   val allObligations = new ArrayList<Obligation>
   val allSurvivingObligations = new ArrayList<Obligation>
   val allPowers = new ArrayList<Power>
 
   val eventVariables = new ArrayList<Variable>
-
-  val obligationTriggerEvents = new HashMap<Obligation, List<PAtomPredicate>>
-  val survivingObligationTriggerEvents = new HashMap<Obligation, List<PAtomPredicate>>
-  val powerTriggerEvents = new HashMap<Power, List<PAtomPredicate>>
-
-  val obligationAntecedentEvents = new HashMap<Obligation, List<PAtomPredicate>>
-  val survivingObligationAntecedentEvents = new HashMap<Obligation, List<PAtomPredicate>>
-  val powerAntecedentEvents = new HashMap<Power, List<PAtomPredicate>>
-
-  val obligationFullfilmentEvents = new HashMap<Obligation, List<PAtomPredicate>>
-  val survivingObligationFullfilmentEvents = new HashMap<Obligation, List<PAtomPredicate>>
   
   val preconditions = new ArrayList<Proposition>
   val postconditions = new ArrayList<Proposition>
@@ -148,7 +136,7 @@ class SymboleoGenerator extends AbstractGenerator {
 
   def void generateHFSource(IFileSystemAccess2 fsa, Model model) {
     parse(model)
-    compileDomainTypes(fsa, model)
+    compileDomainTypes(fsa, model)  
   }
 
   def void parse(Model model) {
@@ -176,320 +164,143 @@ class SymboleoGenerator extends AbstractGenerator {
         eventVariables.add(variable)
       }
     }
-
-    // filtering conditional and untriggered obligations and powers
-    for (obligation : model.obligations) {
-      if (obligation.trigger !== null) {
-        untriggeredObligations.add(obligation)
-      } else {
-        triggeredObligations.add(obligation)
-      }
-      if (obligation.antecedent instanceof PAtomPredicateTrueLiteral) {
-        unconditionalObligations.add(obligation)
-      } else {
-        conditionalObligations.add(obligation)
-      }
-    }
-    for (obligation : model.survivingObligations) {
-      if (obligation.trigger !== null) {
-        untriggeredSurvivingObligations.add(obligation)
-      } else {
-        triggeredSurvivingObligations.add(obligation)
-      }
-      if (obligation.antecedent instanceof PAtomPredicateTrueLiteral) {
-        unconditionalSurvivingObligations.add(obligation)
-      } else {
-        conditionalSurvivingObligations.add(obligation)
-      }
-    }
-    for (power : model.powers) {
-      if (power.trigger !== null) {
-        untriggeredPowers.add(power)
-      } else {
-        triggeredPowers.add(power)
-      }
-      if (power.antecedent instanceof PAtomPredicateTrueLiteral) {
-        unconditionalPowers.add(power)
-      } else {
-        conditionalPowers.add(power)
-      }
-    }
     
-    allObligations.addAll(untriggeredObligations)
-    allObligations.addAll(triggeredObligations)
-    allSurvivingObligations.addAll(untriggeredSurvivingObligations)
-    allSurvivingObligations.addAll(triggeredSurvivingObligations)
-    allPowers.addAll(untriggeredPowers)
-    allPowers.addAll(triggeredPowers)
+    allObligations.addAll(model.obligations)
+    allSurvivingObligations.addAll(model.survivingObligations)
+    allPowers.addAll(model.powers)
 
-    // collect trigger events
-    for (obligation : untriggeredObligations) {
-      val proposition = obligation.trigger
-      val list = collectPropositionEvents(proposition)
-      if (list.size > 0) {
-        obligationTriggerEvents.put(obligation, list)
-      }
-    }
-    for (obligation : untriggeredSurvivingObligations) {
-      val proposition = obligation.trigger
-      val list = collectPropositionEvents(proposition)
-      if (list.size > 0) {
-        survivingObligationTriggerEvents.put(obligation, list)
-      }
-    }
-    for (power : untriggeredPowers) {
-      val proposition = power.trigger
-      val list = collectPropositionEvents(proposition)
-      if (list.size > 0) {
-        powerTriggerEvents.put(power, list)
-      }
-    }
-    // collect fulfillment events of obligations
-    for (obligation : allObligations) {
-      val proposition = obligation.consequent
-      val list = collectPropositionEvents(proposition)
-      if (list.size > 0) {
-        obligationFullfilmentEvents.put(obligation, list)
-      }
-    }
-    for (obligation : allSurvivingObligations) {
-      val proposition = obligation.consequent
-      val list = collectPropositionEvents(proposition)
-      if (list.size > 0) {
-        survivingObligationFullfilmentEvents.put(obligation, list)
-      }
-    }
-    // collect antecedent activates 
-    for (obligation : conditionalObligations) {
-      val proposition = obligation.antecedent
-      val list = collectPropositionEvents(proposition)
-      if (list.size > 0) {
-        obligationAntecedentEvents.put(obligation, list)
-      }
-    }
-    for (obligation : conditionalSurvivingObligations) {
-      val proposition = obligation.antecedent
-      val list = collectPropositionEvents(proposition)
-      if (list.size > 0) {
-        survivingObligationAntecedentEvents.put(obligation, list)
-      }
-    }
-    for (power : conditionalPowers) {
-      val proposition = power.antecedent
-      val list = collectPropositionEvents(proposition)
-      if (list.size > 0) {
-        powerAntecedentEvents.put(power, list)
-      }
-    }
-    
     preconditions.addAll(model.preconditions)
     postconditions.addAll(model.postconditions)
     constraints.addAll(model.constraints)
 
   }
-  
-  
-  private def boolean isSurvivingObligation (String name) {
-    for (obligation: allObligations){
-      if(obligation.name.equals(name)){
-        return false
-      }
-    }
-    for (obligation: allSurvivingObligations){
-      if(obligation.name.equals(name)){
-        return true
-      }
-    }
-  }
 
-  def List<PAtomPredicate> collectPropositionEvents(Proposition proposition) {
-    val list = new ArrayList<PAtomPredicate>
-    switch (proposition) {
-      POr: {
-        list.addAll(collectPropositionEvents(proposition.left))
-        list.addAll(collectPropositionEvents(proposition.right))
-      }
-      PAnd: {
-        list.addAll(collectPropositionEvents(proposition.left))
-        list.addAll(collectPropositionEvents(proposition.right))
-      }
-      PEquality: {
-        list.addAll(collectPropositionEvents(proposition.left))
-        list.addAll(collectPropositionEvents(proposition.right))
-      }
-      PComparison: {
-        list.addAll(collectPropositionEvents(proposition.left))
-        list.addAll(collectPropositionEvents(proposition.right))
-      }
-      PAtomRecursive:
-        list.addAll(collectPropositionEvents(proposition.inner))
-      NegatedPAtom:
-        list.addAll(collectPropositionEvents(proposition.negated))
-      PAtomPredicate:
-        list.add(proposition)
-    }
-    return list
+  def generateSituation(Situation situation) {
+  	switch(situation) {
+  	  ObligationState:'''«situation.stateName»(obligations.«situation.obligationVariable.name»)'''
+  	  PowerState:'''«situation.stateName»(powers.«situation.powerVariable.name»)'''
+  	  ContractState:'''«situation.stateName»(self)'''
+  	}
   }
-
+  
   def String generatePredicateFunctionString(PredicateFunction predicate) {
     switch (predicate) {
-      PredicateFunctionHappens: return '''Predicates.happens(«generateEventVariableString(predicate.event)»)'''
-      PredicateFunctionHappensAfter: return '''Predicates.happensAfter(«generateEventVariableString(predicate.event)», «generatePointExpresionString(predicate.point.pointExpression)»)'''
-      PredicateFunctionWHappensBefore: return '''Predicates.weakHappensBefore(«generateEventVariableString(predicate.event)», «generatePointExpresionString(predicate.point.pointExpression)»)'''
-      PredicateFunctionSHappensBefore: return '''Predicates.strongHappensBefore(«generateEventVariableString(predicate.event)», «generatePointExpresionString(predicate.point.pointExpression)»)'''
-      PredicateFunctionHappensWithin: return '''Predicates.happensWithin(«generateEventVariableString(predicate.event)», «generateIntervalExpresionArgString(predicate.interval.intervalExpression)»)'''
+      PredicateFunctionHappens:'''Happens(«generateEventVariableString(predicate.event)»)'''
+      PredicateFunctionWHappensBefore:'''WhappensBefore(«generateEventVariableString(predicate.event)», «generatePointExpresionString(predicate.point.pointExpression)»)'''
+      PredicateFunctionSHappensBefore:'''ShappensBefore(«generateEventVariableString(predicate.event)», «generatePointExpresionString(predicate.point.pointExpression)»)'''
+      PredicateFunctionHappensWithin:'''HappensWithin(«generateEventVariableString(predicate.event)», «generateIntervalExpresionArgString(predicate.interval.intervalExpression)»)'''
+      PredicateFunctionWHappensBeforeEvent:'''WhappensBeforeE(«generateEventVariableString(predicate.event1)», «generateEventVariableString(predicate.event2)»'''
+      PredicateFunctionSHappensBeforeEvent:'''ShappensBeforeE(«generateEventVariableString(predicate.event1)», «generateEventVariableString(predicate.event2)»'''
+      PredicateFunctionHappensAfter:'''HappensAfter(«generateEventVariableString(predicate.event)», «generatePointExpresionString(predicate.point.pointExpression)»)'''
+      PredicateFunctionOccurs:'''Occurs(«generateSituation(predicate.situation)», «generateIntervalExpresionArgString(predicate.interval.intervalExpression)»)'''
     }
   }
 
-  def String generateEventVariableString(Event event) {
+  def generateEventVariableString(Event event) {
     switch (event) {
-      VariableEvent: return generateDotExpressionString(event.variable, 'contract')
-      PowerEvent: return '''contract.powers.«event.powerVariable.name» && contract.powers.«event.powerVariable.name»._events.«event.eventName»'''
-      ObligationEvent: return '''contract.«isSurvivingObligation(event.obligationVariable.name) ? "survivingObligations" : "obligations"».«event.obligationVariable.name» && contract.«isSurvivingObligation(event.obligationVariable.name) ? "survivingObligations" : "obligations"».«event.obligationVariable.name»._events.«event.eventName»'''
-      ContractEvent: return '''contract._events.«event.eventName»'''
+      VariableEvent: generateDotExpressionString(event.variable)
+      PowerEvent: '''«event.eventName»(powers.«event.powerVariable.name»)'''
+      ObligationEvent: '''«event.eventName»(obligations.«event.obligationVariable.name»)'''
+      ContractEvent: '''«event.eventName»(self)'''
     }
   }
 
   def String generatePointExpresionString(PointExpression point) {
     switch (point) {
-      PointFunction: return '''Utils.addTime(«generatePointExpresionString(point.arg)», «generateTimeValueString(point.value)», "«point.timeUnit»")'''
-      PointAtomParameterDotExpression: {
-        if (Helpers.isDotExpressionTypeOfEvent(point.variable, variables, parameters)) {
-          return '''«generateDotExpressionString(point.variable, 'contract')»._timestamp'''
-        } else {
-          return generateDotExpressionString(point.variable, 'contract')
-        }
-        
-      }
+      PointFunction: '''«point.name»(«generatePointExpresionString(point.arg)», «generateTimeValueString(point.value)», «point.timeUnit»)'''
+      PointAtomParameterDotExpression: '''«generateDotExpressionString(point.variable)»'''
       PointAtomObligationEvent: {
-        val e = point.obligationEvent as ObligationEvent
-        val obligationRef = isSurvivingObligation(e.obligationVariable.name) ? "survivingObligations" : "obligations"        
-        return '''contract.«obligationRef».«e.obligationVariable.name» && contract.«obligationRef».«e.obligationVariable.name»._events.«e.eventName» && contract.«obligationRef».«e.obligationVariable.name»._events.«e.eventName»._timestamp'''
-      }
-      PointAtomPowerEvent: {
-        val e = point.powerEvent as PowerEvent
-        return '''contract.powers.«e.powerVariable.name» && contract.powers.«e.powerVariable.name»._events.«e.eventName» && contract.powers.«e.powerVariable.name»._events.«e.eventName»._timestamp'''
+        val e = point.obligationEvent as ObligationEvent        
+        '''«e.eventName»(obligations.«e.obligationVariable.name»)'''
       }
       PointAtomContractEvent: {
         val e = point.contractEvent as ContractEvent
-        return '''contract._events.«e.eventName» && contract._events.«e.eventName»._timestamp'''
+        '''«e.eventName»(self)'''
       }
+      PointAtomPowerEvent: {
+        val e = point.powerEvent as PowerEvent
+        '''«e.eventName»(powers.«e.powerVariable.name»)'''
+      }
+
     }
   }
 
-  def String generateTimeValueString(Timevalue tv) {
+  def generateTimeValueString(Timevalue tv) {
     switch (tv) {
-      TimevalueInt: return tv.value.toString
-      TimevalueVariable: return generateDotExpressionString(tv.variable, 'contract')
+      TimevalueInt: tv.value.toString
+      TimevalueVariable: generateDotExpressionString(tv.variable)
     }
   }
-
-  def String generateIntervalExpresionArgString(IntervalExpression interval) {
+  
+  def generateIntervalExpresionArgString(IntervalExpression interval) {
     switch (interval) {
-      IntervalFunction:
-        return '''«generatePointExpresionString(interval.arg1)», «generatePointExpresionString(interval.arg2)»'''
-      SituationExpression: {
-        val situation = interval.situation
-        switch (situation) {
-          ObligationState: return '''contract.«isSurvivingObligation(situation.obligationVariable.name) ? "survivingObligations" : "obligations"».«situation.obligationVariable.name», "Obligation.«situation.stateName»"'''
-          PowerState: return '''contract.powers.«situation.powerVariable.name», "Power.«situation.stateName»""'''
-          ContractState: return '''contract, "Contract.«situation.stateName»"'''
-        }
-      }
+      IntervalFunction:'''Interval(«generatePointExpresionString(interval.arg1)», «generatePointExpresionString(interval.arg2)»)'''
+      SituationExpression: generateSituation(interval.situation)
     }
+  }
+  
+  def variablesToVariableNames() {
+  	val vnames = new ArrayList<String>
+  	for (v : variables) {
+  		vnames.add(v.getName)
+  	}
+  	return vnames
   }
  
-
-  // Concerto expression string generation
-  def String generateExpressionString(Expression argExpression, String thisString) {
+  def String generateExpressionString(Expression argExpression, Boolean ergo) {
     switch (argExpression) {
-      Or:
-        return generateExpressionString(argExpression.left, thisString) + " or " +
-          generateExpressionString(argExpression.right, thisString)
-      And:
-        return generateExpressionString(argExpression.left, thisString) + " and " +
-          generateExpressionString(argExpression.right, thisString)
-      Equality:
-        return generateExpressionString(argExpression.left, thisString) + argExpression.op +
-          generateExpressionString(argExpression.right, thisString)
-      Comparison:
-        return generateExpressionString(argExpression.left, thisString) + argExpression.op +
-          generateExpressionString(argExpression.right, thisString)
-      Plus:
-        return generateExpressionString(argExpression.left, thisString) + " + " +
-          generateExpressionString(argExpression.right, thisString)
-      Minus:
-        return generateExpressionString(argExpression.left, thisString) + " - " +
-          generateExpressionString(argExpression.right, thisString)
-      Multi:
-        return generateExpressionString(argExpression.left, thisString) + " * " +
-          generateExpressionString(argExpression.right, thisString)
-      Div:
-        return generateExpressionString(argExpression.left, thisString) + " / " +
-          generateExpressionString(argExpression.right, thisString)
-      PrimaryExpressionRecursive:
-        return "(" + generateExpressionString(argExpression.inner, thisString) + ")"
-      PrimaryExpressionFunctionCall:
-        return generateFunctionCall(argExpression, thisString)
-      NegatedPrimaryExpression:
-        return "not (" + generateExpressionString(argExpression.expression, thisString) + ")"
-      AtomicExpressionTrue:
-        return "true"
-      AtomicExpressionFalse:
-        return "false"
-      AtomicExpressionDouble:
-        return argExpression.value.toString()
-      AtomicExpressionInt:
-        return argExpression.value.toString()
-      AtomicExpressionDate:
-        return '''(new Date("«argExpression.value.toInstant.toString»").toISOString())'''
-      AtomicExpressionEnum:
-        return argExpression.enumeration.name + "." + argExpression.enumItem.name
-      AtomicExpressionString:
-        return '"' + argExpression.value + '"'
-      AtomicExpressionParameter:
-        return generateDotExpressionString(argExpression.value, thisString)
+      Or: '''«generateExpressionString(argExpression.left, ergo)» or «generateExpressionString(argExpression.right, ergo)»'''
+      And: '''«generateExpressionString(argExpression.left, ergo)» and «generateExpressionString(argExpression.right, ergo)»'''
+      Equality: generateExpressionString(argExpression.left, ergo) + argExpression.op + generateExpressionString(argExpression.right, ergo)
+      Comparison: generateExpressionString(argExpression.left, ergo) + argExpression.op + generateExpressionString(argExpression.right, ergo)
+      Plus: '''«generateExpressionString(argExpression.left, ergo)» + «generateExpressionString(argExpression.right, ergo)»'''
+      Minus: generateExpressionString(argExpression.left, ergo) + " - " + generateExpressionString(argExpression.right, ergo)
+      Multi: generateExpressionString(argExpression.left, ergo) + " * " + generateExpressionString(argExpression.right, ergo)
+      Div: generateExpressionString(argExpression.left, ergo) + " / " + generateExpressionString(argExpression.right, ergo)
+      PrimaryExpressionRecursive: "(" + generateExpressionString(argExpression.inner, ergo) + ")"
+      PrimaryExpressionFunctionCall: generateFunctionCall(argExpression, ergo)
+      NegatedPrimaryExpression: "not (" + generateExpressionString(argExpression.expression, ergo) + ")"
+      AtomicExpressionTrue: "true"
+      AtomicExpressionFalse: "false"
+      AtomicExpressionDouble: argExpression.value.toString()
+      AtomicExpressionInt: argExpression.value.toString()
+      AtomicExpressionDate: '''Date("«argExpression.value.toInstant.toString»")'''
+      AtomicExpressionEnum: '''«IF ergo»«argExpression.enumItem.name»«ELSE»«argExpression.enumeration.name»(«argExpression.enumItem.name»)«ENDIF»'''
+      AtomicExpressionString: '"' + argExpression.value + '"'
+      AtomicExpressionParameter: '''«IF variablesToVariableNames.contains(generateDotExpressionString(argExpression.value))»«generateDotExpressionString(argExpression.value)»«ELSE»request.«generateDotExpressionString(argExpression.value)»«ENDIF»'''
     }
   }
 
   def String generatePropositionString(Proposition proposition) {
     switch (proposition) {
-      POr:
-        return generatePropositionString(proposition.left) + "or" + generatePropositionString(proposition.right)
-      PAnd:
-        return generatePropositionString(proposition.left) + "and" + generatePropositionString(proposition.right)
-      PEquality:
-        return generatePropositionString(proposition.left) + proposition.op +
-          generatePropositionString(proposition.right)
-      PComparison:
-        return generatePropositionString(proposition.left) + proposition.op +
-          generatePropositionString(proposition.right)
-      PAtomRecursive:
-        return "(" + generatePropositionString(proposition.inner) + ")"
-      NegatedPAtom:
-        return "not(" + generatePropositionString(proposition.negated) + ")"
-      PAtomPredicate:
-        return generatePredicateFunctionString(proposition.predicateFunction)
-      PAtomEnum:
-        return proposition.enumeration.name + "." + proposition.enumItem.name
-      PAtomVariable:
-        return generateDotExpressionString(proposition.variable, 'contract')
-      PAtomPredicateTrueLiteral:
-        return "true"
-      PAtomPredicateFalseLiteral:
-        return "false"
-      PAtomDoubleLiteral:
-        return proposition.value.toString
-      PAtomIntLiteral:
-        return proposition.value.toString
-      PAtomDateLiteral:
-        return '''(new Date("«proposition.value.toInstant.toString»").toISOString())'''
-      PAtomStringLiteral:
-        return proposition.value
+      POr: generatePropositionString(proposition.left) + " or " + generatePropositionString(proposition.right)
+      PAnd: generatePropositionString(proposition.left) + " and " + generatePropositionString(proposition.right)
+      PEquality: generatePropositionString(proposition.left) + proposition.op + generatePropositionString(proposition.right)
+      PComparison: generatePropositionString(proposition.left) + proposition.op + generatePropositionString(proposition.right)
+      PAtomRecursive: "(" + generatePropositionString(proposition.inner) + ")"
+      NegatedPAtom: "not (" + generatePropositionString(proposition.negated) + ")"
+      PAtomPredicate: generatePredicateFunctionString(proposition.predicateFunction)
+      PAtomFunction: generateOtherFunction(proposition.function)
+      PAtomEnum: proposition.enumeration.name + "(" + proposition.enumItem.name + ")"
+      PAtomVariable: generateDotExpressionString(proposition.variable)
+      PAtomPredicateTrueLiteral: "true"
+      PAtomPredicateFalseLiteral: "false"
+      PAtomDoubleLiteral: proposition.value.toString
+      PAtomIntLiteral: proposition.value.toString
+      PAtomDateLiteral: '''Date("«proposition.value.toInstant.toString»")'''
+      PAtomStringLiteral: proposition.value
     }
   }
 
-  def String generateDotExpressionString(Ref argRef, String thisString) {
+  def String generateOtherFunction(OtherFunction func) {
+  	switch(func){
+  	  PredicateFunctionIsEqual: 'IsEqual(' + func.arg1 + ', ' + func.arg2 + ')'
+  	  PredicateFunctionIsOwner: 'IsOwner(' + func.arg1 + ', ' + func.arg2 + ')'
+  	  PredicateFunctionCannotBeAssigned: 'CannotBeAssigned(' + func.arg1 + ')'
+  	}
+  }
+	
+  def String generateDotExpressionString(Ref argRef) {
     val ids = new ArrayList<String>()
     var ref = argRef
     while (ref instanceof VariableDotExpression) {
@@ -499,43 +310,10 @@ class SymboleoGenerator extends AbstractGenerator {
     if (ref instanceof VariableRef) {
       ids.add((ref as VariableRef).variable)
     }
-    ids.add(thisString)
-    //return ids.reverse().join(".")
-    return ids.get(0)
+    return ids.reverse().join(".")
   }
   
-  // CONCERTO GENERATE OBLIGATION CREDITOR TYPE
-  def String generateRefTypeString(Ref argRef) {
-    val ids = new ArrayList<String>()
-    var ref = argRef
-    while (ref instanceof VariableDotExpression) {
-      ids.add(ref.tail.name)
-      ref = ref.ref
-    }
-	var type = ""
-    if (ref instanceof VariableRef) {
-      var x = (ref as VariableRef).variable
-      ids.add((ref as VariableRef).variable)
-      for (p : parameters) {
-      	if(p.getName.equals(x)){
-      		if(p.getType.getBaseType !== null) {
-      			type = p.getType.getBaseType.getName	
-      		}
-      		else {
-      			type = p.getType.getDomainType.getName
-      		}
-      	}
-      }
-      for (v : variables) {
-      	if(v.getName.equals(x)){
-      		type = v.getType.getName
-      	}
-      }
-    }
-    return type + " " + ids.reverse().join(".")
-  }
-  
-  def String generateType(ParameterType type) {
+  def String generateParameterType(ParameterType type) {
 	if(type.getBaseType!== null)
 		if(type.getBaseType.getName.equals("Number"))
 			return "Integer"
@@ -546,230 +324,184 @@ class SymboleoGenerator extends AbstractGenerator {
 	else
 		return type.getDomainType.getName
   }
-
-  // CONCERTO INPUT PARAMETERS CONTRACT 
-  def String generateInputContract()'''
-  	asset InputContract {
+  
+  def String generateAttributeType(Attribute type) {
+  	if(type.getBaseType !== null)
+		if(type.getBaseType.getName.equals("Number"))
+			return "Integer"
+		else if(type.getBaseType.getName.equals("Date"))
+			return "DateTime"
+		else
+			return type.getBaseType.getName
+	else
+		return type.getDomainType.getName
+  }
+  
+  //INPUT PARAMETERS CONTRACT 
+  def generateInputContract()'''
+  	transaction InputContract extends Request{
   		«FOR p : parameters»
-  		o «generateType(p.type)» «p.name»  
+  		o «generateParameterType(p.type)» «p.name»  
   		«ENDFOR»
-  		}
+  	}
   	
   	'''
   	
-  def String generatePowerFunction(PowerFunction pf)'''
-		«pf.getAction» 
-  '''
+  def generatePowerFunction(PowerFunction pf) {
+  	switch(pf) {
+  	  PFObligationSuspended:'''Suspended(obligations.«pf.norm.name»)'''
+  	  PFObligationResumed:'''Resumed(obligations.«pf.norm.name»)'''
+  	  PFObligationDischarged:'''Discharged(obligations.«pf.norm.name»)'''
+  	  PFObligationTerminated:'''Terminated(obligations.«pf.norm.name»)'''
+  	  PFObligationTriggered:'''Triggered(obligations.«pf.norm.name»)'''
+  	  PFContractSuspended:'''Suspended(self)'''	
+   	  PFContractResumed:'''Resumed(self)'''
+   	  PFContractTerminated:'''Terminated(self)'''
+  	}
+  }
   
-  def String generateVariables()'''
+  def generateVariables(Boolean ergo)'''
   	«FOR v : variables»
-  		let «v.getName» = «v.getType.name» { 
+	let «v.getName» = «v.getType.name» { 
   		«val attr = v.getAttributes»
   		«FOR a : attr SEPARATOR ','» 
-  			«(a as AssignExpression).name» : «generateExpressionString((a as AssignExpression).value,"")»
+  			«(a as AssignExpression).name» : «generateExpressionString((a as AssignExpression).value, ergo)»
 		«ENDFOR»
+		};
+		
 	«ENDFOR»
   '''
-  
-  def String generateObligations()'''
+
+  def generateObligations(String s)'''
     «FOR o : allObligations»
-    	obl «o.getName» = 
-    		«IF o.trigger !== null» 
-    			«generatePropositionString(o.trigger)» -> 
-    		«ENDIF»
-    		O(«generateDotExpressionString(o.debtor,"")», «generateDotExpressionString(o.creditor,"")», «generatePropositionString(o.antecedent)», «generatePropositionString(o.consequent)»); 
+    	«s»obl «o.getName» = «IF o.trigger !== null»«generatePropositionString(o.trigger)» -> «ENDIF»O(«generateDotExpressionString(o.debtor)», «generateDotExpressionString(o.creditor)», «generatePropositionString(o.antecedent)», «generatePropositionString(o.consequent)»); 
   	«ENDFOR»
   '''
   
-  def String generateSurvivingObligations()'''
+  def generateSurvivingObligations(String s)'''
     «FOR o : allSurvivingObligations»
-    	sobl «o.getName» = 
-    		«IF o.trigger !== null» 
-    			«generatePropositionString(o.trigger)» -> 
-    		«ENDIF»
-    		O(«generateDotExpressionString(o.debtor,"")», «generateDotExpressionString(o.creditor,"")», «generatePropositionString(o.antecedent)», «generatePropositionString(o.consequent)»); 
+    	«s»sobl «o.getName» = «IF o.trigger !== null»«generatePropositionString(o.trigger)» -> «ENDIF»O(«generateDotExpressionString(o.debtor)», «generateDotExpressionString(o.creditor)», «generatePropositionString(o.antecedent)», «generatePropositionString(o.consequent)»); 
   	«ENDFOR»
   '''
   
-  def String generatePowers()'''
+  def generatePowers(String s)'''
     «FOR o : allPowers»
-    	pow «o.getName» = 
-    		«IF o.trigger !== null» 
-    			«generatePropositionString(o.trigger)» -> 
-    		«ENDIF»
-    		P(«generateDotExpressionString(o.debtor,"")», «generateDotExpressionString(o.creditor,"")», «generatePropositionString(o.antecedent)», «generatePowerFunction(o.consequent)»); 
+    	«s»pow «o.getName» = «IF o.trigger !== null»«generatePropositionString(o.trigger)» -> «ENDIF»P(«generateDotExpressionString(o.creditor)», «generateDotExpressionString(o.debtor)», «generatePropositionString(o.antecedent)», «generatePowerFunction(o.consequent)»); 
   	«ENDFOR»
   '''
   
-  def String generatePrePostConst(ArrayList<Proposition> prop, String keyword)'''
+  def generatePrePostConst(ArrayList<Proposition> prop, String keyword, String s)'''
   	«FOR o : prop»
-  	    «keyword» «generatePropositionString(o)»;
-  	 «ENDFOR»
+  	    «s»«keyword» «generatePropositionString(o)»;
+  	«ENDFOR»
+  '''
+
+  def generateLogic(Model model, Boolean ergo)'''
+  	namespace NS«model.getDomainName»
+
+  	import org.accordproject.time.TemporalUnit
+  	import org.accordproject.time.*
+  	
+  	contract «model.contractName» over «model.getDomainName» {
+  		clause myclause(request : InputContract) : Response {            
+  			«IF ergo»«generateVariables(ergo)»
+            «generatePrePostConst(preconditions, "pre", "//")»
+            «generatePrePostConst(postconditions, "post", "//")»
+            «generateObligations("//")»
+            «generateSurvivingObligations("//")»
+            «generatePowers("//")»
+            «generatePrePostConst(constraints, "constr", "//")»
+            «ELSE»«generateVariables(ergo)»
+            «generatePrePostConst(preconditions, "pre", "")»
+            «generatePrePostConst(postconditions, "post", "")»
+            «generateObligations("")»
+            «generateSurvivingObligations("")»
+            «generatePowers("")»
+            «generatePrePostConst(constraints, "constr","")»«ENDIF»
+  			return Response{}
+  		}
+  	}
+  	
+  '''
+  	
+  def generateModel(Model model, Boolean concerto)'''
+  	namespace NS«model.getDomainName»
+  	
+  	import org.accordproject.«IF concerto»c«ELSE»C«ENDIF»ontract.* 
+  	import org.accordproject.runtime.* 
+  	
+  	asset «model.getDomainName» extends Clause{}
+  	
+  	«generateInputContract»
+  	
+  	transaction Response {}
+  	«FOR role : roles»
+		«generateEntity(role, "participant")»
+  	«ENDFOR»
+  	«FOR event : events»
+  		«generateEntity(event, "concept")»
+  	«ENDFOR»
+  	«FOR asset : assets»
+    	«generateEntity(asset, "asset")»
+  	«ENDFOR»
+  	
+  	«FOR enumeration : enumerations»
+  	  	«generateEnumeration(enumeration)»
+  	«ENDFOR»
   '''
   
-  // ERGo generation
-  def String generateLogic()'''
-  	contract MyLogic over InputContract {
-  		clause contract(request : InputContract) : null {
-  			«generateVariables()»
-  			«generateObligations()»
-  			«generateSurvivingObligations()»
-  			«generatePowers()»
-  			«generatePrePostConst(preconditions, "pre")»
-  			«generatePrePostConst(preconditions, "post")»
-  			«generatePrePostConst(preconditions, "constr")»
-  		};
-  	
-  	'''
-  	
-  def String generateFunctionCall(PrimaryExpressionFunctionCall argFunctionCallExp, String thisString) {
+  def String generateFunctionCall(PrimaryExpressionFunctionCall argFunctionCallExp, Boolean ergo) {
     val functionCall = argFunctionCallExp.function
     switch (functionCall) {
-      TwoArgMathFunction:
-        return functionCall.name + "(" + generateExpressionString(functionCall.arg1, thisString) + "," +
-          generateExpressionString(functionCall.arg2, thisString) + ")"
-      OneArgMathFunction:
-        return functionCall.name + "(" + generateExpressionString(functionCall.arg1, thisString) + ")"
-      ThreeArgStringFunction:
-        return functionCall.name.replace("String", "Str") + "(" + generateExpressionString(functionCall.arg1, thisString) + "," +
-          generateExpressionString(functionCall.arg2, thisString) + "," + generateExpressionString(functionCall.arg3, thisString) + ")"
-      TwoArgStringFunction:
-        return functionCall.name.replace("String", "Str") + "(" + generateExpressionString(functionCall.arg1, thisString) + "," +
-          generateExpressionString(functionCall.arg2, thisString) + ")"
-      OneArgStringFunction:
-        return functionCall.name.replace("String", "Str") + "(" + generateExpressionString(functionCall.arg1, thisString) + ")"
+      TwoArgMathFunction: functionCall.name + "(" + generateExpressionString(functionCall.arg1, ergo) + "," + generateExpressionString(functionCall.arg2, ergo) + ")"
+      OneArgMathFunction: // add more functions????
+      '''«IF ergo»
+      	«IF functionCall.name.equals("Math.abs")»
+      integerAbs(«generateExpressionString(functionCall.arg1, ergo)»)
+      	«ENDIF»
+      «ELSE»
+        «functionCall.name»(«generateExpressionString(functionCall.arg1, ergo)»)
+      «ENDIF»'''
+      ThreeArgStringFunction: functionCall.name + "(" + generateExpressionString(functionCall.arg1, ergo) + "," + generateExpressionString(functionCall.arg2, ergo) + "," + generateExpressionString(functionCall.arg3, ergo) + ")"
+      TwoArgStringFunction: functionCall.name + "(" + generateExpressionString(functionCall.arg1, ergo) + "," + generateExpressionString(functionCall.arg2, ergo) + ")"
+      OneArgStringFunction: functionCall.name + "(" + generateExpressionString(functionCall.arg1, ergo) + ")"
       ThreeArgDateFunction:
-        return '''Utils.addTime(«generateExpressionString(functionCall.arg1, thisString)», «generateExpressionString(functionCall.value, thisString)», "«functionCall.timeUnit»")'''
+      '''«IF ergo»
+      addDuration(«generateExpressionString(functionCall.arg1, ergo)», Duration{amount: «generateExpressionString(functionCall.value, ergo)», unit: «functionCall.timeUnit»})
+      «ELSE»
+      Date.add(«generateExpressionString(functionCall.arg1, ergo)», «generateExpressionString(functionCall.value, ergo)», «functionCall.timeUnit»)
+      «ENDIF»'''
     }
   }
 
-  // changed compileDomainTypes to fit concerto generation
   def void compileDomainTypes(IFileSystemAccess2 fsa, Model model) {
-    val StringBuilder concertoString = new StringBuilder();
-    val StringBuilder contractString = new StringBuilder();
-    concertoString.append("namespace studentContract \n\n")
-    contractString.append("asset " + model.getDomainName + " extends Contract {")
-	for (role : roles) {
-      concertoString.append(generateRoleConcerto(model, role))
-      contractString.append("\n\to " + role.getName + " " + role.getName.toLowerCase) 
-    }
-    for (event : events) {
-      concertoString.append(generateEventConcerto(model, event))
-      contractString.append("\n\to " + event.getName + " " + event.getName.toLowerCase)
-    }
-    for (asset : assets) {
-      concertoString.append(generateAssetConcerto(model, asset))
-      contractString.append("\n\to " + asset.getName + " " + asset.getName.toLowerCase)
-    }
-    contractString.append("\n}\n\n")
-    concertoString.append(contractString)
-    concertoString.append(generateInputContract)
-    
-    for (enumeration : enumerations) {
-      concertoString.append(generateEnumerationConcerto(model, enumeration))
-    }
-    fsa.generateFile("./" + model.contractName + "/domain/model.cto", concertoString.toString())
-    fsa.generateFile("./" + model.contractName + "logic.ergo", generateLogic)
-  }
- 
-
-  // CONCERTO CHAR SEQUENCE GENERATION FOR OBLIGATION (GENERATES TO EVENT)
-  def CharSequence generateObligationConcerto(Model model, Obligation obligation) {
-  	val code = '''
-  	event «obligation.name» {
-  		o «generateRefTypeString(obligation.debtor)»
-  		o «generateRefTypeString(obligation.creditor)»
-«««  		o «generatePropositionString(obligation.antecedent)»
-		o Boolean antecedent
-		o Boolean «generatePropositionString(obligation.consequent)»
-  	}
-  	
-  	'''
-  	
-  	return code
+    val concertom = generateModel(model,true)
+    val m = generateModel(model,false)
+    val ergol = generateLogic(model, true)   
+    val l = generateLogic(model, false)
+    fsa.generateFile("./" + model.contractName + "model.cto", concertom)
+    fsa.generateFile("./" + model.contractName + "logic.ergo", ergol)
+    val ml = m.toString + l.toString
+    fsa.generateFile("./" + model.contractName + "model_and_logic.txt", ml)
   }
   
-  // CONCERTO CHAR SEQUENCE GENERATION FOR ENUMERATION
-  def CharSequence generateEnumerationConcerto(Model model, Enumeration enumeration) {
-  	val code = '''      
-      enum «enumeration.name» {
-        «FOR item : enumeration.enumerationItems»
-        	o «item.name»
-        «ENDFOR»
-      }
+  def String generateEnumeration(Enumeration enumeration)'''      
+    enum «enumeration.name» {
+    	«FOR item : enumeration.enumerationItems»
+    	o «item.name»
+    	«ENDFOR»
+    }
       
     '''
-    return code;
-  }
 
-  // CONCERTO CHAR SEQUENCE GENERATION FOR ASSET
-  def CharSequence generateAssetConcerto(Model model, RegularType asset) {
-    val code = '''
-  	asset «asset.name» {
-  		«FOR attribute : asset.attributes»
-  		«IF attribute.getBaseType !== null »
-  			«IF attribute.getBaseType.getName.equals("Number")» 
-  				o Integer «attribute.name»
-  			«ELSEIF attribute.getBaseType.getName.equals("Date")»
-  				o DateTime «attribute.name»
-			«ELSE»
-  			o «attribute.getBaseType.getName» «attribute.name»
-			«ENDIF»
-		«ELSE»
-  		o «attribute.getDomainType.getName» «attribute.name»
-		«ENDIF»
+  def String generateEntity(RegularType rt, String ontology)'''
+  	«ontology» «rt.name» «IF rt.regularType !== null»extends «rt.regularType.name»«ENDIF»{
+  		«FOR attribute : rt.attributes»
+  		o «generateAttributeType(attribute)» «attribute.name»
   		«ENDFOR»
   	}
   	
   	'''
-  	return code
-  }
-
-  // CONCERTO CHAR SEQUENCE GENERATION FOR EVENT (GENERATES TO CONCEPT)
-  def CharSequence generateEventConcerto(Model model, RegularType event) {
-  	val code = '''
-  	concept «event.name» {
-  		«FOR attribute : event.attributes»
-  		«IF attribute.getBaseType !== null »
-  			«IF attribute.getBaseType.getName.equals("Number")» 
-  				o Integer «attribute.name»
-  			«ELSEIF attribute.getBaseType.getName.equals("Date")»
-  				o DateTime «attribute.name»
-			«ELSE»
-  			o «attribute.getBaseType.getName» «attribute.name»
-			«ENDIF»
-		«ELSE»
-  		o «attribute.getDomainType.getName» «attribute.name»
-		«ENDIF»
-  		«ENDFOR»
-  	}
-  	
-  	'''
-  	return code
-  }
-  
-  // CONCERTO CHAR SEQUENCE GENERATION FOR ROLE (GENERATES TO PARTICIPANT)
-  def CharSequence generateRoleConcerto(Model model, RegularType role) {
-     val code = '''  
-	 participant «role.name» {
-	 	«FOR attribute : role.attributes»
-  		«IF attribute.getBaseType !== null »
-  			«IF attribute.getBaseType.getName.equals("Number")» 
-  				o Integer «attribute.name»
-			«ELSEIF attribute.getBaseType.getName.equals("Date")»
-  				o DateTime «attribute.name»
-			«ELSE»
-  			o «attribute.getBaseType.getName» «attribute.name»
-			«ENDIF»
-		«ELSE»
-  		o «attribute.getDomainType.getName» «attribute.name»
-		«ENDIF»
-  		«ENDFOR»
-	 }
-	 
-	 '''
-  	 return code;
-  }
 
   override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorContext context) {
     for (e : resource.allContents.toIterable.filter(Model)) {
@@ -778,40 +510,17 @@ class SymboleoGenerator extends AbstractGenerator {
       roles.clear()
       enumerations.clear()
       parameters.clear()
+      variables.clear()
 
-      conditionalObligations.clear()
-      conditionalSurvivingObligations.clear()
-      conditionalPowers.clear()
-                                              
-      unconditionalObligations.clear()
-      unconditionalSurvivingObligations.clear()
-      unconditionalPowers.clear()
-                                              
-      untriggeredObligations.clear()
-      untriggeredSurvivingObligations.clear()
-      untriggeredPowers.clear()
-      
-      
-      triggeredObligations.clear()
-      triggeredSurvivingObligations.clear()
-      triggeredPowers.clear()
-      
       allObligations.clear()
       allSurvivingObligations.clear()
       allPowers.clear()
+      
+      preconditions.clear()
+      postconditions.clear()
+      constraints.clear()
 
       eventVariables.clear()
-
-      obligationTriggerEvents.clear()
-      survivingObligationTriggerEvents.clear()
-      powerTriggerEvents.clear()
-
-      obligationAntecedentEvents.clear()
-      survivingObligationAntecedentEvents.clear()
-      powerAntecedentEvents.clear()
-
-      obligationFullfilmentEvents.clear()
-      survivingObligationFullfilmentEvents.clear()
 
       System.out.println('generateHFSource: ' + e.contractName)
       generateHFSource(fsa, e)
@@ -824,38 +533,12 @@ class SymboleoGenerator extends AbstractGenerator {
     roles.clear()
     enumerations.clear()
     parameters.clear()
-    
-    conditionalObligations.clear()
-    conditionalSurvivingObligations.clear()
-    conditionalPowers.clear()
-                                              
-    unconditionalObligations.clear()
-    unconditionalSurvivingObligations.clear()
-    unconditionalPowers.clear()
-                                              
-    untriggeredObligations.clear()
-    untriggeredSurvivingObligations.clear()
-    untriggeredPowers.clear()
-
-    triggeredObligations.clear()
-    triggeredSurvivingObligations.clear()
-    triggeredPowers.clear()
+    variables.clear()
     
     allObligations.clear()
     allSurvivingObligations.clear()
     allPowers.clear()
 
     eventVariables.clear()
-
-    obligationTriggerEvents.clear()
-    survivingObligationTriggerEvents.clear()
-    powerTriggerEvents.clear()
-
-    obligationAntecedentEvents.clear()
-    survivingObligationAntecedentEvents.clear()
-    powerAntecedentEvents.clear()
-
-    obligationFullfilmentEvents.clear()
-    survivingObligationFullfilmentEvents.clear()
   }
 }
