@@ -1,5 +1,5 @@
 # Symboleo to Accord Project template compiler
-The original Symboleo IDE has been enhanced with transcompilation options. Specifically upon saving a Symboleo contract, Concerto and Ergo language outputs are created.
+The original Symboleo IDE has been enhanced with transcompilation capabilites. Specifically upon saving a Symboleo contract, Concerto and Ergo language outputs are created.
 
 # Symboleo Text Editor
 [![DOI](https://zenodo.org/badge/263478039.svg)](https://zenodo.org/badge/latestdoi/263478039)
